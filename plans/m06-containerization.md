@@ -63,7 +63,8 @@ A `docker-compose.yml` with five services — nginx, pgbouncer, postgres (pre-ba
 
 5. Confirm limits sum: CPU ≤ 1.0, memory ≤ 350 MB.
 6. Create `submission` branch as an orphan (`git checkout --orphan submission && git rm -rf .`). Add only `docker-compose.yml`, `nginx.conf`, `pgbouncer.ini`, `info.json` explicitly by name — never `git add .`. Build and push the pre-baked DB image to `ghcr.io/henrichm/rinha-db:latest` before triggering a preview test.
-7. Update `CLAUDE.md`: document the five-service architecture, Unix socket volume setup, how to run the full stack locally, resource budget breakdown, and how to push the pre-baked image.
+7. No new Ruby source files — no unit test file needed. The acceptance test (`test/m06_containerization_test.rb`) validates the full stack via the load balancer.
+8. Update `CLAUDE.md`: document the five-service architecture, Unix socket volume setup, how to run the full stack locally, resource budget breakdown, and how to push the pre-baked image.
 
 ## Acceptance criteria
 

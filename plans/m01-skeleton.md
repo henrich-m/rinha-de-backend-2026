@@ -16,7 +16,7 @@ All development is done inside Docker — no local Ruby toolchain required.
    - Source code is **not** copied — it is volume-mounted at runtime so edits take effect without rebuilding.
 2. Create `docker-compose.dev.yml`:
    - Service `api`: builds from `Dockerfile.dev`, mounts repo root to `/app`, mounts a named volume for the bundle cache at `/usr/local/bundle` (default `BUNDLE_PATH` in official Ruby images — no explicit env needed), runs `bundle exec falcon serve --bind http://0.0.0.0:9999`, exposes port `9999:9999`.
-3. Create `Gemfile` with gems: `falcon`, `roda`, `oj`, `async-postgres`, `minitest`.
+3. Create `Gemfile` with gems: `falcon`, `roda`, `oj`, `async-postgres`, `minitest`, `rack-test` (test group).
 4. Create `config.ru` at repo root — Falcon's `serve` command loads `config.ru` by default:
    ```ruby
    require_relative "src/server"
@@ -26,7 +26,12 @@ All development is done inside Docker — no local Ruby toolchain required.
 6. Route `GET /ready` → `200 OK`.
 7. Route `POST /fraud-score` → parse body with `Oj.load(request.body.read, symbol_keys: false)`, return stub JSON `{ "approved": true, "fraud_score": 0.0 }`.
 8. Generate and commit `Gemfile.lock` (see Dev workflow below).
-9. Update `CLAUDE.md`: add dev commands, document `Dockerfile.dev` vs `Dockerfile.api` distinction, `config.ru` entry point, and the two API endpoints.
+9. Create `test/server_unit_test.rb` — unit-tests `src/server.rb` via `rack-test` (no live server needed):
+   - Include `Rack::Test::Methods`, set `app = App`.
+   - `GET /ready` → 200.
+   - `POST /fraud-score` → 200, JSON body contains `approved` and `fraud_score`, `Content-Type` is `application/json`.
+   - Run with: `bundle exec ruby -Itest test/server_unit_test.rb` (no Docker required beyond the bundle).
+10. Update `CLAUDE.md`: add dev commands, document `Dockerfile.dev` vs `Dockerfile.api` distinction, `config.ru` entry point, and the two API endpoints.
 
 ## Dev workflow
 

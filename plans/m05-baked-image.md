@@ -36,7 +36,8 @@ A `Dockerfile.db` that uses a multi-stage build to produce a postgres image with
    ```
    `--chown` ensures correct ownership without a separate `RUN chown` step. Both stages share the same `postgres` UID (999) from `pgvector/pgvector:pg16`, so ownership is consistent.
 
-4. Update `CLAUDE.md`: document how to rebuild the pre-baked image, the HNSW index parameters, and the postgres tuning rationale.
+4. No new Ruby source files — no unit test file needed. The acceptance test (`test/m05_baked_image_test.rb`) validates the built image directly.
+5. Update `CLAUDE.md`: document how to rebuild the pre-baked image, the HNSW index parameters, and the postgres tuning rationale.
 
 ## Acceptance criteria
 

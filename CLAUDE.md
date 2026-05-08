@@ -32,6 +32,15 @@ docker compose -f docker-compose.dev.yml down
 
 **Known quirk:** `protocol-rack` calls `peer.ip_address` but `Async::IO::Socket` (from `async-io`) only exposes `remote_address`. The patch in `config.ru` adds this method via `prepend`. Do not remove it.
 
+## Vectorizer
+
+`src/vectorizer.rb` — `Vectorizer.new(normalization_path, mcc_risk_path)` then `vectorizer.vectorize(payload)` returns a 14-element `Float` array.
+
+- Paths are passed explicitly so tests can run from the repo root without `__dir__` tricks.
+- The `-1.0` sentinel at indices 5 and 6 must never be clamped — it signals no prior transaction.
+- Weekday formula: `(Time#wday + 6) % 7` — converts Ruby's sun=0 to spec's mon=0, sun=6.
+- All other values pass through `clamp(x)` = `[[x, 0.0].max, 1.0].min`.
+
 **Dockerfile.api** — production image; source is COPYed in, not mounted.
 
 ## What this is

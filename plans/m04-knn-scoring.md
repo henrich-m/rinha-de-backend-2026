@@ -19,7 +19,26 @@
    - `approved = fraud_score < 0.6`
 3. Return `{ "approved": bool, "fraud_score": float }` as JSON via `oj`.
 4. Use a small pool of 2–4 `Async::Postgres::Client` instances per API process — a single client serializes concurrent fiber queries (PostgreSQL's wire protocol is request-response, not multiplexed). Match the pool size to PgBouncer's `default_pool_size`.
-5. Update `CLAUDE.md`: document the pgvector query pattern, boolean string convention (`"t"`/`"f"`), the `fraud_score < 0.6` threshold, and the end-to-end request flow (HTTP → vectorize → pgvector query → response).
+5. Update `test/server_unit_test.rb` to cover the scoring path without a live DB. Stub `DB` before the test runs by reassigning the constant:
+   ```ruby
+   StubResult = Struct.new(:rows) do
+     include Enumerable
+     def each(&block) = rows.each(&block)
+   end
+
+   setup do
+     all_fraud  = StubResult.new(Array.new(5) { {"is_fraud" => "t"} })
+     all_legit  = StubResult.new(Array.new(5) { {"is_fraud" => "f"} })
+     @fraud_db  = Db.new(client: StubClient.new(all_fraud))
+     @legit_db  = Db.new(client: StubClient.new(all_legit))
+   end
+   ```
+   Tests to add:
+   - All-fraud neighbors → `fraud_score = 1.0`, `approved = false`.
+   - All-legit neighbors → `fraud_score = 0.0`, `approved = true`.
+   - Threshold boundary: 2 fraud / 5 neighbors → `fraud_score = 0.4`, `approved = true`.
+   - Threshold boundary: 3 fraud / 5 neighbors → `fraud_score = 0.6`, `approved = false`.
+6. Update `CLAUDE.md`: document the pgvector query pattern, boolean string convention (`"t"`/`"f"`), the `fraud_score < 0.6` threshold, and the end-to-end request flow (HTTP → vectorize → pgvector query → response).
 
 ## Acceptance criteria
 

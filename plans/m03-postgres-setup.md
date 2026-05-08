@@ -16,17 +16,44 @@ A running local postgres instance with the pgvector extension enabled, a `refs` 
      is_fraud  BOOLEAN NOT NULL
    );
    ```
-3. Create `src/db.rb` — instantiate `Async::Postgres::Client` **eagerly at load time** (outside route definitions) so `/ready` reliably reflects connection state:
+3. Create `src/db.rb` — define a `Db` class that wraps `Async::Postgres::Client` and assign a global `DB` constant. Accept an optional `client:` keyword argument so unit tests can inject a stub without a real database:
    ```ruby
    require "async/postgres"
-   DB = Async::Postgres::Client.new(conninfo: ENV.fetch("DATABASE_URL"))
+
+   class Db
+     def initialize(client: Async::Postgres::Client.new(conninfo: ENV.fetch("DATABASE_URL")))
+       @client = client
+     end
+
+     def query(sql, params = [])
+       @client.query(sql, params)
+     end
+   end
+
+   DB = Db.new
    ```
-   Expose `DB.query(sql, params = [])`. In `/ready`, rescue any exception from `DB.query("SELECT 1")` and return 503.
+   In `/ready`, rescue any exception from `DB.query("SELECT 1")` and return 503.
 4. Create `scripts/seed.rb` — runs as a plain Ruby process (outside Falcon), so use synchronous `PG.connect(ENV.fetch("DATABASE_URL"))`:
    - Open `resources/references.json.gz` with `Zlib::GzipReader`.
    - Stream-parse with `Oj` SAX (`Oj::ScHandler` / `Oj.sc_parse`) — processes one record at a time without loading 284 MB into memory.
    - Bulk-insert via `conn.copy_data("COPY refs (embedding, is_fraud) FROM STDIN")` using `conn.put_copy_data("[f1,f2,...]\ttrue\n")` — pgvector accepts `[f1,f2,...]` square-bracket notation in text-mode COPY.
-5. Update `CLAUDE.md`: document `DATABASE_URL` env var, `refs` schema, seed invocation, and how to start the dev postgres service.
+5. Create `test/db_unit_test.rb` — unit-tests `src/db.rb` using a stub client (no real DB needed):
+   - Verify `knn` sends the correct SQL and wraps the vector as `[f1,f2,…]` text.
+   - Verify `ready?` returns `true` when `query` succeeds and `false` when it raises.
+   - Use Minitest mocks (`Minitest::Mock`) or a simple `Struct`-based stub for the client.
+   Example structure:
+   ```ruby
+   StubClient = Struct.new(:result) do
+     def query(*, **) = result
+   end
+
+   def test_knn_returns_client_result
+     rows = [{"is_fraud" => "t"}, {"is_fraud" => "f"}]
+     db = Db.new(client: StubClient.new(rows))
+     assert_equal rows, db.knn([0.1] * 14)
+   end
+   ```
+6. Update `CLAUDE.md`: document `DATABASE_URL` env var, `refs` schema, seed invocation, and how to start the dev postgres service.
 
 ## Dev workflow additions (from M03)
 

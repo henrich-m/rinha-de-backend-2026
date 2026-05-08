@@ -10,4 +10,5 @@ gem "async-postgres"
 
 group :test do
   gem "minitest"
+  gem "rack-test"
 end

@@ -20,7 +20,8 @@ All submission artifacts exist and a local smoke test confirms the stack is heal
 3. Push the pre-baked DB image: `docker push ghcr.io/henrichm/rinha-db:latest`.
 4. Run a local smoke test: `docker compose up --build -d`, wait for `/ready`, send a request, `docker compose down`.
 5. Trigger an official preview test: open an issue on `zanfranceschi/rinha-de-backend-2026` with `rinha/test` in the body. The Rinha Engine runs the test, posts results as a comment, and closes the issue. Check the comment for `final_score > 0`.
-6. Update `CLAUDE.md`: document the submission process, branch structure, how to push the DB image, and record the first official score as a baseline.
+6. No new Ruby source files — no unit test file needed. `test/m07_submission_test.rb` tests file existence and JSON structure, which qualifies as a unit test for the submission artifacts.
+7. Update `CLAUDE.md`: document the submission process, branch structure, how to push the DB image, and record the first official score as a baseline.
 
 ## Acceptance criteria
 
