@@ -1,0 +1,18 @@
+FROM ruby:4
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+COPY config.ru ./
+COPY src/ ./src/
+COPY resources/normalization.json resources/mcc_risk.json ./resources/
+
+# Bind on Unix socket (nginx upstream) + TCP 9292 (healthcheck only).
+CMD ["bundle", "exec", "falcon", "serve", \
+     "--bind", "unix:///sockets/api.sock", \
+     "--bind", "http://127.0.0.1:9292"]
