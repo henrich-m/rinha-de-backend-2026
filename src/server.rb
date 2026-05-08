@@ -6,8 +6,13 @@ require "oj"
 class App < Roda
   route do |r|
     r.get "ready" do
-      response.status = 200
-      ""
+      if DB.ready?
+        response.status = 200
+        ""
+      else
+        response.status = 503
+        ""
+      end
     end
 
     r.post "fraud-score" do

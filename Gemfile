@@ -6,7 +6,7 @@ gem "falcon"
 gem "io-endpoint"
 gem "roda"
 gem "oj"
-gem "async-postgres"
+gem "pg"
 
 group :test do
   gem "minitest"
