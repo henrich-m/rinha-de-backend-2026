@@ -4,10 +4,14 @@ require "minitest/autorun"
 require "rack/test"
 require "json"
 require_relative "../src/db"
+require_relative "../src/vectorizer"
 
-# Stub DB before requiring server so the constant exists at request time.
+# Stub DB and VECTORIZER before requiring server so constants exist at request time.
 StubConn = Struct.new(:result) { def exec_params(*) = result }
-DB = Db.new(conn: StubConn.new([{"?column?" => "1"}]))
+DB = Db.new(conn: StubConn.new(Array.new(5) { {"is_fraud" => "f"} }))
+
+StubVectorizer = Struct.new(:vector) { def vectorize(_payload) = vector || [0.0] * 14 }
+VECTORIZER = StubVectorizer.new
 
 require_relative "../src/server"
 
@@ -55,6 +59,50 @@ class ServerUnitTest < Minitest::Test
   def test_fraud_score_content_type_is_json
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     assert_match "application/json", last_response.content_type
+  end
+
+  def test_all_fraud_neighbors_returns_score_1_and_denied
+    all_fraud = Db.new(conn: StubConn.new(Array.new(5) { {"is_fraud" => "t"} }))
+    with_db(all_fraud) do
+      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
+    end
+    body = JSON.parse(last_response.body)
+    assert_equal 1.0,   body["fraud_score"]
+    assert_equal false, body["approved"]
+  end
+
+  def test_all_legit_neighbors_returns_score_0_and_approved
+    all_legit = Db.new(conn: StubConn.new(Array.new(5) { {"is_fraud" => "f"} }))
+    with_db(all_legit) do
+      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
+    end
+    body = JSON.parse(last_response.body)
+    assert_equal 0.0,  body["fraud_score"]
+    assert_equal true, body["approved"]
+  end
+
+  def test_two_fraud_neighbors_approved
+    two_fraud = Db.new(conn: StubConn.new(
+      [{"is_fraud" => "t"}, {"is_fraud" => "t"}] + Array.new(3) { {"is_fraud" => "f"} }
+    ))
+    with_db(two_fraud) do
+      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
+    end
+    body = JSON.parse(last_response.body)
+    assert_equal 0.4,  body["fraud_score"]
+    assert_equal true, body["approved"]
+  end
+
+  def test_three_fraud_neighbors_denied
+    three_fraud = Db.new(conn: StubConn.new(
+      Array.new(3) { {"is_fraud" => "t"} } + [{"is_fraud" => "f"}, {"is_fraud" => "f"}]
+    ))
+    with_db(three_fraud) do
+      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
+    end
+    body = JSON.parse(last_response.body)
+    assert_equal 0.6,   body["fraud_score"]
+    assert_equal false, body["approved"]
   end
 
   private

@@ -16,9 +16,13 @@ class App < Roda
     end
 
     r.post "fraud-score" do
-      Oj.load(r.body.read, symbol_keys: false)
+      payload     = Oj.load(r.body.read, symbol_keys: false)
+      vector      = VECTORIZER.vectorize(payload)
+      neighbors   = DB.knn(vector)
+      fraud_count = neighbors.count { |row| row["is_fraud"] == "t" }
+      fraud_score = fraud_count.to_f / 5
       response["Content-Type"] = "application/json"
-      Oj.dump({ "approved" => true, "fraud_score" => 0.0 })
+      Oj.dump({ "approved" => fraud_score < 0.6, "fraud_score" => fraud_score })
     end
   end
 end
