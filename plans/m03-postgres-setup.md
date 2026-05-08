@@ -6,8 +6,8 @@ A running local postgres instance with the pgvector extension enabled, a `refs` 
 
 ## Tasks
 
-1. Create `src/db.rb` — open an `Async::Postgres::Client` connection to `ENV["DATABASE_URL"]` (PgBouncer in production, direct postgres locally); expose `DB.query(sql, params)`. The async-postgres client is fiber-scheduler-aware, so Falcon fibers yield while waiting for query results instead of blocking the thread.
-2. Create the schema:
+1. Add a `db` service in-place to `docker-compose.dev.yml` using `pgvector/pgvector:pg16` (ships with the extension pre-installed). Add a healthcheck (`pg_isready`) and `depends_on: {db: {condition: service_healthy}}` to the `api` service so Falcon waits for postgres before starting.
+2. Create the schema (run once via `exec db psql` or in the seed script):
    ```sql
    CREATE EXTENSION IF NOT EXISTS vector;
    CREATE TABLE refs (
@@ -16,11 +16,27 @@ A running local postgres instance with the pgvector extension enabled, a `refs` 
      is_fraud  BOOLEAN NOT NULL
    );
    ```
-3. Create `scripts/seed.rb`:
+3. Create `src/db.rb` — instantiate `Async::Postgres::Client` **eagerly at load time** (outside route definitions) so `/ready` reliably reflects connection state:
+   ```ruby
+   require "async/postgres"
+   DB = Async::Postgres::Client.new(conninfo: ENV.fetch("DATABASE_URL"))
+   ```
+   Expose `DB.query(sql, params = [])`. In `/ready`, rescue any exception from `DB.query("SELECT 1")` and return 503.
+4. Create `scripts/seed.rb` — runs as a plain Ruby process (outside Falcon), so use synchronous `PG.connect(ENV.fetch("DATABASE_URL"))`:
    - Open `resources/references.json.gz` with `Zlib::GzipReader`.
-   - Stream-parse with `oj` (SAX/callback mode) to avoid loading 284 MB of JSON at once.
-   - Bulk-insert via postgres `COPY refs (embedding, is_fraud) FROM STDIN` using `conn.copy_data` — batch rows as `[0.01,0.08,...]\ttrue\n`.
-4. Wire `/ready` to attempt `DB.query("SELECT 1")` and return 503 on failure.
+   - Stream-parse with `Oj` SAX (`Oj::ScHandler` / `Oj.sc_parse`) — processes one record at a time without loading 284 MB into memory.
+   - Bulk-insert via `conn.copy_data("COPY refs (embedding, is_fraud) FROM STDIN")` using `conn.put_copy_data("[f1,f2,...]\ttrue\n")` — pgvector accepts `[f1,f2,...]` square-bracket notation in text-mode COPY.
+5. Update `CLAUDE.md`: document `DATABASE_URL` env var, `refs` schema, seed invocation, and how to start the dev postgres service.
+
+## Dev workflow additions (from M03)
+
+```bash
+# Add db service to docker-compose.dev.yml, then restart
+docker compose -f docker-compose.dev.yml up -d
+
+# Run the seed (exec into the running api container — reuses the installed bundle)
+docker compose -f docker-compose.dev.yml exec api bundle exec ruby scripts/seed.rb
+```
 
 ## Acceptance criteria
 

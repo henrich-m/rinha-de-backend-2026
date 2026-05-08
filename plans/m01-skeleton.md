@@ -15,18 +15,27 @@ All development is done inside Docker — no local Ruby toolchain required.
    - `COPY Gemfile Gemfile.lock* ./` then `RUN bundle install`
    - Source code is **not** copied — it is volume-mounted at runtime so edits take effect without rebuilding.
 2. Create `docker-compose.dev.yml`:
-   - Service `api`: builds from `Dockerfile.dev`, mounts repo root to `/app`, mounts a named volume for the bundle cache (`/usr/local/bundle`), runs `bundle exec falcon serve --bind http://0.0.0.0:9999`, exposes port `9999:9999`.
+   - Service `api`: builds from `Dockerfile.dev`, mounts repo root to `/app`, mounts a named volume for the bundle cache at `/usr/local/bundle` (default `BUNDLE_PATH` in official Ruby images — no explicit env needed), runs `bundle exec falcon serve --bind http://0.0.0.0:9999`, exposes port `9999:9999`.
 3. Create `Gemfile` with gems: `falcon`, `roda`, `oj`, `async-postgres`, `minitest`.
-4. Create `src/server.rb` — Roda app with both routes, wrapped in `Async do ... end`.
-5. Route `GET /ready` → `200 OK`.
-6. Route `POST /fraud-score` → parse JSON body with `oj`, return stub JSON.
-7. Update `CLAUDE.md`: add dev commands (`docker compose -f docker-compose.dev.yml ...`), document `Dockerfile.dev` vs `Dockerfile.api` distinction, and the two API endpoints.
+4. Create `config.ru` at repo root — Falcon's `serve` command loads `config.ru` by default:
+   ```ruby
+   require_relative "src/server"
+   run App
+   ```
+5. Create `src/server.rb` — defines `App`, a Roda subclass (valid Rack app via `.call`). No `Async::HTTP::Server.run` needed; Falcon's fiber scheduler wraps it automatically.
+6. Route `GET /ready` → `200 OK`.
+7. Route `POST /fraud-score` → parse body with `Oj.load(request.body.read, symbol_keys: false)`, return stub JSON `{ "approved": true, "fraud_score": 0.0 }`.
+8. Generate and commit `Gemfile.lock` (see Dev workflow below).
+9. Update `CLAUDE.md`: add dev commands, document `Dockerfile.dev` vs `Dockerfile.api` distinction, `config.ru` entry point, and the two API endpoints.
 
 ## Dev workflow
 
 ```bash
-# First time — install gems into the named volume
+# First time — install gems and capture the lockfile
 docker compose -f docker-compose.dev.yml run --rm api bundle install
+# Copy Gemfile.lock out and commit it for reproducible builds
+docker compose -f docker-compose.dev.yml run --rm api cat Gemfile.lock > Gemfile.lock
+git add Gemfile.lock && git commit -m "Add Gemfile.lock"
 
 # Start the server (detached)
 docker compose -f docker-compose.dev.yml up -d

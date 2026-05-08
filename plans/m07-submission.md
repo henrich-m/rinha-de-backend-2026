@@ -2,19 +2,29 @@
 
 ## Goal
 
-All submission artifacts exist and a local k6 preview test completes with `final_score > 0` (failure_rate < 15%, p99 < 2000ms).
+All submission artifacts exist and a local smoke test confirms the stack is healthy. The official score comes from the Rinha Engine after triggering a preview test via a GitHub issue.
 
 ## Tasks
 
-1. Create `info.json` with `participants`, `social`, `source-code-repo`, `stack`, `open_to_work` fields.
-2. Verify `submission` branch has only `docker-compose.yml`, `nginx.conf`, `pgbouncer.ini`, `info.json` (no source code).
-3. Run the k6 test locally against the containerized stack and confirm `results.json` is generated.
-4. Check `failure_rate < 15%` and `final_score > 0` in `results.json`.
-5. Open a GitHub issue with `rinha/test` in the body to trigger an official preview test.
+1. Create `info.json` (all fields are arrays of strings except `open_to_work`):
+   ```json
+   {
+     "participants": ["Henrich Moraes"],
+     "social": ["https://github.com/henrichm"],
+     "source-code-repo": "https://github.com/henrichm/rinha-2026",
+     "stack": ["ruby", "falcon", "postgres", "pgvector", "pgbouncer", "nginx"],
+     "open_to_work": false
+   }
+   ```
+2. Verify `submission` branch (orphan, created in M06) has only `docker-compose.yml`, `nginx.conf`, `pgbouncer.ini`, `info.json`. Never `git add .` — always add files explicitly by name.
+3. Push the pre-baked DB image: `docker push ghcr.io/henrichm/rinha-db:latest`.
+4. Run a local smoke test: `docker compose up --build -d`, wait for `/ready`, send a request, `docker compose down`.
+5. Trigger an official preview test: open an issue on `zanfranceschi/rinha-de-backend-2026` with `rinha/test` in the body. The Rinha Engine runs the test, posts results as a comment, and closes the issue. Check the comment for `final_score > 0`.
+6. Update `CLAUDE.md`: document the submission process, branch structure, how to push the DB image, and record the first official score as a baseline.
 
 ## Acceptance criteria
 
-Run with: `bundle exec ruby -Itest test/m07_submission_test.rb` (k6 test must have been run and `results.json` present).
+Run with: `bundle exec ruby -Itest test/m07_submission_test.rb`
 
 ```ruby
 # test/m07_submission_test.rb
@@ -32,6 +42,16 @@ class SubmissionTest < Minitest::Test
     end
   end
 
+  def test_info_json_participants_is_array
+    j = JSON.parse(File.read("info.json"))
+    assert_instance_of Array, j["participants"]
+  end
+
+  def test_info_json_stack_is_array
+    j = JSON.parse(File.read("info.json"))
+    assert_instance_of Array, j["stack"]
+  end
+
   def test_submission_branch_has_required_files
     SUBMISSION_REQUIRED_FILES.each do |file|
       system("git show submission:#{file} > /dev/null 2>&1")
@@ -44,25 +64,11 @@ class SubmissionTest < Minitest::Test
     refute $?.success?, "src/server.rb must NOT exist on the submission branch"
   end
 
-  def test_results_json_exists
-    assert File.exist?("results.json"), "results.json must exist (run k6 first)"
-  end
-
-  def test_failure_rate_below_threshold
-    summary = k6_summary
-    skip "no k6 summary found in results.json" unless summary
-    rate = summary.dig("metrics", "http_req_failed", "values", "rate") || 0.0
-    assert_operator rate, :<, 0.15, "failure rate must be below 15%"
-  end
-
-  private
-
-  def k6_summary
-    return @k6_summary if defined?(@k6_summary)
-    lines = File.readlines("results.json")
-    @k6_summary = lines.lazy
-      .map { JSON.parse(_1) rescue nil }
-      .find { _1&.dig("type") == "summary" }
+  def test_stack_smoke
+    # Requires docker compose up --build -d to be running
+    require "net/http"
+    res = Net::HTTP.get_response(URI("http://localhost:9999/ready"))
+    assert_equal "200", res.code, "/ready must return 200 through the full stack"
   end
 end
 ```

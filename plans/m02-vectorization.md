@@ -7,12 +7,12 @@
 ## Tasks
 
 1. Create `src/vectorizer.rb` with a `Vectorizer` class or module.
-2. Load `resources/normalization.json` and `resources/mcc_risk.json` once at startup (frozen constants).
+2. Load `resources/normalization.json` and `resources/mcc_risk.json` using `File.expand_path("../../resources/...", __dir__)` (safe for any working directory). Freeze the resulting constants.
 3. Implement `clamp(x)` → restricts to `[0.0, 1.0]`.
-4. Implement `vectorize(payload)` returning a 14-element float array following the index table in DETECTION_RULES.md.
+4. Implement `vectorize(payload)` returning a 14-element raw `Float` array (no rounding — tests use `assert_in_delta`).
 5. Handle `last_transaction: null` → indices 5 and 6 become `-1.0`.
-6. Parse `requested_at` to extract UTC hour (index 3) and weekday mon=0..sun=6 (index 4).
-7. Update `CLAUDE.md`: document `Vectorizer` usage, the 14-dim index table, and the `-1` sentinel rule.
+6. Parse `requested_at` with `require "time"` then `Time.iso8601(requested_at).utc` — correctly handles `Z` and `+HH:MM` offsets. Extract `.hour` for index 3, and `(t.wday + 6) % 7` for index 4 (converts Ruby's sun=0 to the spec's mon=0, sun=6).
+7. Update `CLAUDE.md`: document `Vectorizer` usage, the 14-dim index table, the `-1` sentinel rule, and the weekday formula.
 
 ## Acceptance criteria
 

@@ -6,22 +6,68 @@ A `docker-compose.yml` with five services — nginx, pgbouncer, postgres (pre-ba
 
 ## Tasks
 
-1. Write `Dockerfile.api` — `FROM ruby:4` base image, `bundle install`, start with `falcon serve --bind unix:///sockets/api.sock`.
-2. Write `config/nginx.conf` — upstream block using Unix socket paths (`server unix:/sockets/api-1/api.sock` and `server unix:/sockets/api-2/api.sock`), `proxy_pass`, no business logic.
-3. In `docker-compose.yml`, declare two named volumes — `sockets-api-1` and `sockets-api-2` — each mounted into both the corresponding API container and nginx so the socket file is visible to both sides.
-4. Write `config/pgbouncer.ini` — point to postgres service, `pool_mode = transaction`, `max_client_conn = 100`, `default_pool_size = 10`.
-5. Write `docker-compose.yml` with five services:
-   - `postgres`: pre-baked `rinha-db` image, not exposed externally, `POSTGRES_PASSWORD` env.
-   - `pgbouncer`: `edoburu/pgbouncer` image, mounts `pgbouncer.ini`, port 5432 internally only.
-   - `api-1` / `api-2`: build from `Dockerfile.api`, `DATABASE_URL` points to `pgbouncer:5432`, mounts its own socket volume at `/sockets`.
-   - `nginx`: depends on api-1 + api-2, mounts both socket volumes at `/sockets/api-1` and `/sockets/api-2`, exposes port 9999.
+1. Write `Dockerfile.api`:
+   ```dockerfile
+   FROM ruby:4
+   WORKDIR /app
+   COPY Gemfile Gemfile.lock ./
+   RUN bundle install
+   COPY src/ ./src/
+   COPY config/ ./config/
+   COPY resources/normalization.json resources/mcc_risk.json ./resources/
+   CMD ["bundle", "exec", "falcon", "serve", "--bind", "unix:///sockets/api.sock", "--count", "1"]
+   ```
+   Do **not** copy `resources/references.json.gz` — it is only needed by the DB image build.
+
+2. Write `config/nginx.conf` — upstream uses Unix socket paths; nginx mounts both socket volumes:
+   ```nginx
+   upstream api {
+     server unix:/sockets/api-1/api.sock;
+     server unix:/sockets/api-2/api.sock;
+     keepalive 32;
+   }
+   # proxy_next_upstream so a starting instance doesn't return 502 to clients
+   proxy_next_upstream error timeout http_502 http_503;
+   ```
+
+3. Write `config/pgbouncer.ini`:
+   ```ini
+   [databases]
+   rinha = host=postgres port=5432 dbname=rinha
+
+   [pgbouncer]
+   pool_mode = transaction
+   max_client_conn = 100
+   default_pool_size = 10
+   listen_addr = 0.0.0.0
+   listen_port = 5432
+   auth_file = /etc/pgbouncer/userlist.txt
+   ```
+   Also create `config/userlist.txt`: `"postgres" "postgres"` (plaintext password; use md5 hash in production).
+   Mount both files into the `edoburu/pgbouncer` container at `/etc/pgbouncer/`.
+
+4. Write `docker-compose.yml` with five services:
+   - `postgres`: `image: ghcr.io/henrichm/rinha-db:latest` (pre-baked; see Q38 — push before triggering a test). Not exposed externally.
+   - `pgbouncer`: `edoburu/pgbouncer`, mounts `pgbouncer.ini` and `userlist.txt` at `/etc/pgbouncer/`.
+   - `api-1` / `api-2`: build from `Dockerfile.api`, `DATABASE_URL=postgres://postgres:postgres@pgbouncer:5432/rinha`, each mounts its own socket volume (`sockets-api-1` / `sockets-api-2`) at `/sockets`. Add Docker healthcheck:
+     ```yaml
+     healthcheck:
+       test: ["CMD", "curl", "-sf", "http://localhost:9999/ready"]
+       interval: 5s
+       timeout: 3s
+       retries: 5
+       start_period: 10s
+     ```
+   - `nginx`: depends on api-1 + api-2 (`condition: service_healthy`), mounts `sockets-api-1` at `/sockets/api-1` and `sockets-api-2` at `/sockets/api-2`, exposes port 9999. Both API instances write to `/sockets/api.sock` inside their own container — volume isolation keeps the files separate; nginx sees them at distinct paths.
    - All five services declare `deploy.resources.limits`.
-6. Confirm limits sum: CPU ≤ 1.0, memory ≤ 350 MB.
-7. Create `submission` branch with only `docker-compose.yml`, `nginx.conf`, `pgbouncer.ini`, `info.json`.
+
+5. Confirm limits sum: CPU ≤ 1.0, memory ≤ 350 MB.
+6. Create `submission` branch as an orphan (`git checkout --orphan submission && git rm -rf .`). Add only `docker-compose.yml`, `nginx.conf`, `pgbouncer.ini`, `info.json` explicitly by name — never `git add .`. Build and push the pre-baked DB image to `ghcr.io/henrichm/rinha-db:latest` before triggering a preview test.
+7. Update `CLAUDE.md`: document the five-service architecture, Unix socket volume setup, how to run the full stack locally, resource budget breakdown, and how to push the pre-baked image.
 
 ## Acceptance criteria
 
-Run with: `bundle exec ruby -Itest test/m06_containerization_test.rb` (requires `docker compose up --build -d` to be running).
+Run with: `bundle exec ruby -Itest test/m06_containerization_test.rb` (requires `docker compose up --build -d` running).
 
 ```ruby
 # test/m06_containerization_test.rb
