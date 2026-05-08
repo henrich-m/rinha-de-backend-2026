@@ -1,0 +1,14 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - bundle_cache:/usr/local/bundle
+    ports:
+      - "9999:9999"
+    command: bundle exec falcon serve --bind http://0.0.0.0:9999
+
+volumes:
+  bundle_cache:

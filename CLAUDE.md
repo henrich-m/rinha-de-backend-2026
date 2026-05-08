@@ -2,6 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development
+
+All development runs inside Docker — no local Ruby toolchain required.
+
+**Stack:** Ruby 4, Falcon (async fiber server), Roda (router), Oj (JSON), async-postgres, PostgreSQL 16 + pgvector, PgBouncer, nginx.
+
+**Entry point:** `config.ru` at repo root — Falcon loads it automatically via `falcon serve`. It requires `src/server.rb` and calls `run App` where `App` is a Roda subclass.
+
+**Dev commands:**
+
+```bash
+# First time — install gems and capture lockfile
+docker compose -f docker-compose.dev.yml run --rm api bundle install
+docker compose -f docker-compose.dev.yml run --rm api cat Gemfile.lock > Gemfile.lock
+
+# Start server
+docker compose -f docker-compose.dev.yml up -d
+
+# Run a milestone test suite (server must be running)
+docker compose -f docker-compose.dev.yml exec api bundle exec ruby -Itest test/m01_skeleton_test.rb
+
+# Tail logs / stop
+docker compose -f docker-compose.dev.yml logs -f api
+docker compose -f docker-compose.dev.yml down
+```
+
+**Dockerfile.dev** — source is volume-mounted at `/app`; gems persist in `bundle_cache` volume at `/usr/local/bundle`. Rebuild only when `Gemfile` changes.
+
+**Known quirk:** `protocol-rack` calls `peer.ip_address` but `Async::IO::Socket` (from `async-io`) only exposes `remote_address`. The patch in `config.ru` adds this method via `prepend`. Do not remove it.
+
+**Dockerfile.api** — production image; source is COPYed in, not mounted.
+
 ## What this is
 
 **Rinha de Backend 2026** — a backend competition where you build a fraud detection API using vector search. This repository contains the official challenge specification and reference data; your implementation goes in a separate repository.
