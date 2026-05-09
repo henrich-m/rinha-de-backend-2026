@@ -4,6 +4,7 @@ source "https://rubygems.org"
 
 gem "falcon"
 gem "io-endpoint"
+gem "async-pool"
 gem "roda"
 gem "oj"
 gem "pg"

@@ -36,4 +36,8 @@ RUN gosu postgres initdb -D "$PGDATA" -A trust && \
 
 FROM pgvector/pgvector:pg18
 
+# Override PG18's new default (/var/lib/postgresql/18/docker) so the
+# entrypoint finds pre-baked data instead of initialising a fresh cluster.
+ENV PGDATA=/var/lib/postgresql/data
+
 COPY --chown=postgres:postgres --from=builder /pgdata /var/lib/postgresql/data

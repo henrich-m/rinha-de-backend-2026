@@ -105,6 +105,20 @@ class ServerUnitTest < Minitest::Test
     assert_equal false, body["approved"]
   end
 
+  def test_db_exception_returns_approved_with_zero_score
+    raising_conn = Object.new.tap do |c|
+      c.define_singleton_method(:exec_params) { raise PG::Error, "connection error" }
+    end
+    raising_db = Db.new(conn: raising_conn)
+    with_db(raising_db) do
+      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
+    end
+    body = JSON.parse(last_response.body)
+    assert_equal 200,  last_response.status
+    assert_equal 0.0,  body["fraud_score"]
+    assert_equal true, body["approved"]
+  end
+
   private
 
   def with_db(db)
