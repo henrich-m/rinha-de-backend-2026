@@ -35,13 +35,13 @@ class ServerUnitTest < Minitest::Test
   def setup
     # Default stubs: search is ready, all-legit neighbors
     Search.define_singleton_method(:ready?) { MockResponse.new(200, "Ready") }
-    Search.define_singleton_method(:knn) { |_v| { "results" => [0, 0, 0, 0, 0] } }
+    Search.define_singleton_method(:knn) { |_v| [0, 0, 0, 0, 0] }
   end
 
   def teardown
     # Reset to default stubs after each test
     Search.define_singleton_method(:ready?) { MockResponse.new(200, "Ready") }
-    Search.define_singleton_method(:knn) { |_v| { "results" => [0, 0, 0, 0, 0] } }
+    Search.define_singleton_method(:knn) { |_v| [0, 0, 0, 0, 0] }
   end
 
   def test_ready_returns_200_when_db_is_up
@@ -76,7 +76,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_all_fraud_neighbors_returns_score_1_and_denied
-    Search.define_singleton_method(:knn) { |_v| { "results" => [1, 1, 1, 1, 1] } }
+    Search.define_singleton_method(:knn) { |_v| [1, 1, 1, 1, 1] }
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 1.0,   body["fraud_score"]
@@ -84,7 +84,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_all_legit_neighbors_returns_score_0_and_approved
-    Search.define_singleton_method(:knn) { |_v| { "results" => [0, 0, 0, 0, 0] } }
+    Search.define_singleton_method(:knn) { |_v| [0, 0, 0, 0, 0] }
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.0,  body["fraud_score"]
@@ -92,7 +92,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_two_fraud_neighbors_approved
-    Search.define_singleton_method(:knn) { |_v| { "results" => [1, 1, 0, 0, 0] } }
+    Search.define_singleton_method(:knn) { |_v| [1, 1, 0, 0, 0] }
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.4,  body["fraud_score"]
@@ -100,7 +100,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_three_fraud_neighbors_denied
-    Search.define_singleton_method(:knn) { |_v| { "results" => [1, 1, 1, 0, 0] } }
+    Search.define_singleton_method(:knn) { |_v| [1, 1, 1, 0, 0] }
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.6,   body["fraud_score"]

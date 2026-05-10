@@ -1,11 +1,11 @@
 services:
   search:
     build:
-      context: .
-      dockerfile: Dockerfile.search
+      context: ./search
+      dockerfile: Dockerfile
     image: ghcr.io/henrichm/rinha-search:latest
     environment:
-      KNN_NPROBE: "32"
+      KNN_NPROBE: "10"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9294/ready"]
       interval: 5s
@@ -19,13 +19,15 @@ services:
 
   api-1:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ./api
+      dockerfile: Dockerfile
     image: ghcr.io/henrichm/rinha-api:latest
     environment:
       SEARCH_URL: http://search:9294
+      MALLOC_ARENA_MAX: "2"
+      RUBYOPT: "--yjit-exec-mem-size=16"
     volumes:
-      - .:/app
+      - ./api:/app
       - bundle_cache:/usr/local/bundle
     depends_on:
       search:
@@ -43,13 +45,13 @@ services:
 
   api-2:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ./api
+      dockerfile: Dockerfile
     image: ghcr.io/henrichm/rinha-api:latest
     environment:
       SEARCH_URL: http://search:9294
     volumes:
-      - .:/app
+      - ./api:/app
       - bundle_cache:/usr/local/bundle
     depends_on:
       search:
