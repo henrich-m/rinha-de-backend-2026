@@ -2,30 +2,51 @@
 
 require "roda"
 require "oj"
+require "async/http/client"
+require "async/http/endpoint"
+
+module Search
+  def self.client
+    @client ||= Async::HTTP::Client.new(
+      Async::HTTP::Endpoint.parse(SEARCH_URL)
+    )
+  end
+
+  def self.ready?
+    client.get("/ready")
+  end
+
+  def self.knn(vector)
+    body = Oj.dump({ "vector" => vector, "k" => 5 })
+    resp = client.post("/knn",
+      [["content-type", "application/json"]],
+      [body]
+    )
+    Oj.load(resp.read, symbol_keys: false)
+  end
+end
 
 class App < Roda
   route do |r|
     r.get "ready" do
-      if DB.ready?
-        response.status = 200
-        "DB Ready"
-      else
-        response.status = 503
-        "DB Not Ready"
-      end
+      resp = Search.ready?
+      response.status = resp.status
+      resp.read
+    rescue
+      response.status = 503
+      "Search not ready"
     end
 
     r.post "fraud-score" do
       response["Content-Type"] = "application/json"
-      payload     = Oj.load(r.body.read, symbol_keys: false)
-      vector      = VECTORIZER.vectorize(payload)
+      payload = Oj.load(r.body.read, symbol_keys: false)
+      vector  = VECTORIZER.vectorize(payload)
       begin
-        neighbors   = DB.knn(vector)
-        fraud_count = neighbors.count { |row| row["is_fraud"] == "t" }
+        data        = Search.knn(vector)
+        fraud_count = data["results"].count { |v| v == 1 }
         fraud_score = fraud_count.to_f / 5
         Oj.dump({ "approved" => fraud_score < 0.6, "fraud_score" => fraud_score })
       rescue
-        puts "."
         Oj.dump({ "approved" => true, "fraud_score" => 0.0 })
       end
     end

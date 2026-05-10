@@ -4,10 +4,10 @@ source "https://rubygems.org"
 
 gem "falcon"
 gem "io-endpoint"
-gem "async-pool"
 gem "roda"
 gem "oj"
-gem "pg"
+gem "numo-narray"
+gem "faiss"
 
 group :test do
   gem "minitest"

@@ -3,17 +3,20 @@
 require "minitest/autorun"
 require "rack/test"
 require "json"
-require_relative "../src/db"
 require_relative "../src/vectorizer"
 
-# Stub DB and VECTORIZER before requiring server so constants exist at request time.
-StubConn = Struct.new(:result) { def exec_params(*) = result }
-DB = Db.new(conn: StubConn.new(Array.new(5) { {"is_fraud" => "f"} }))
-
+# Stub VECTORIZER before requiring server so the constant exists at request time.
 StubVectorizer = Struct.new(:vector) { def vectorize(_payload) = vector || [0.0] * 14 }
 VECTORIZER = StubVectorizer.new
 
+SEARCH_URL = "http://search:9294"
+
 require_relative "../src/server"
+
+# Mock response object returned by Search stubs
+MockResponse = Struct.new(:status, :body) do
+  def read = body
+end
 
 class ServerUnitTest < Minitest::Test
   include Rack::Test::Methods
@@ -29,15 +32,26 @@ class ServerUnitTest < Minitest::Test
     "last_transaction" => nil
   }.freeze
 
+  def setup
+    # Default stubs: search is ready, all-legit neighbors
+    Search.define_singleton_method(:ready?) { MockResponse.new(200, "Ready") }
+    Search.define_singleton_method(:knn) { |_v| { "results" => [0, 0, 0, 0, 0] } }
+  end
+
+  def teardown
+    # Reset to default stubs after each test
+    Search.define_singleton_method(:ready?) { MockResponse.new(200, "Ready") }
+    Search.define_singleton_method(:knn) { |_v| { "results" => [0, 0, 0, 0, 0] } }
+  end
+
   def test_ready_returns_200_when_db_is_up
     get "/ready"
     assert_equal 200, last_response.status
   end
 
   def test_ready_returns_503_when_db_is_down
-    failing_conn = Object.new.tap { |c| c.define_singleton_method(:exec_params) { raise "no db" } }
-    failing_db = Db.new(conn: failing_conn)
-    with_db(failing_db) { get "/ready" }
+    Search.define_singleton_method(:ready?) { raise "search unavailable" }
+    get "/ready"
     assert_equal 503, last_response.status
   end
 
@@ -62,75 +76,43 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_all_fraud_neighbors_returns_score_1_and_denied
-    all_fraud = Db.new(conn: StubConn.new(Array.new(5) { {"is_fraud" => "t"} }))
-    with_db(all_fraud) do
-      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
-    end
+    Search.define_singleton_method(:knn) { |_v| { "results" => [1, 1, 1, 1, 1] } }
+    post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 1.0,   body["fraud_score"]
     assert_equal false, body["approved"]
   end
 
   def test_all_legit_neighbors_returns_score_0_and_approved
-    all_legit = Db.new(conn: StubConn.new(Array.new(5) { {"is_fraud" => "f"} }))
-    with_db(all_legit) do
-      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
-    end
+    Search.define_singleton_method(:knn) { |_v| { "results" => [0, 0, 0, 0, 0] } }
+    post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.0,  body["fraud_score"]
     assert_equal true, body["approved"]
   end
 
   def test_two_fraud_neighbors_approved
-    two_fraud = Db.new(conn: StubConn.new(
-      [{"is_fraud" => "t"}, {"is_fraud" => "t"}] + Array.new(3) { {"is_fraud" => "f"} }
-    ))
-    with_db(two_fraud) do
-      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
-    end
+    Search.define_singleton_method(:knn) { |_v| { "results" => [1, 1, 0, 0, 0] } }
+    post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.4,  body["fraud_score"]
     assert_equal true, body["approved"]
   end
 
   def test_three_fraud_neighbors_denied
-    three_fraud = Db.new(conn: StubConn.new(
-      Array.new(3) { {"is_fraud" => "t"} } + [{"is_fraud" => "f"}, {"is_fraud" => "f"}]
-    ))
-    with_db(three_fraud) do
-      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
-    end
+    Search.define_singleton_method(:knn) { |_v| { "results" => [1, 1, 1, 0, 0] } }
+    post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.6,   body["fraud_score"]
     assert_equal false, body["approved"]
   end
 
   def test_db_exception_returns_approved_with_zero_score
-    raising_conn = Object.new.tap do |c|
-      c.define_singleton_method(:exec_params) { raise PG::Error, "connection error" }
-    end
-    raising_db = Db.new(conn: raising_conn)
-    with_db(raising_db) do
-      post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
-    end
+    Search.define_singleton_method(:knn) { |_v| raise RuntimeError, "connection error" }
+    post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 200,  last_response.status
     assert_equal 0.0,  body["fraud_score"]
     assert_equal true, body["approved"]
-  end
-
-  private
-
-  def with_db(db)
-    old = Object.const_get(:DB)
-    prev_verbose = $VERBOSE
-    $VERBOSE = nil
-    Object.const_set(:DB, db)
-    $VERBOSE = prev_verbose
-    yield
-  ensure
-    $VERBOSE = nil
-    Object.const_set(:DB, old)
-    $VERBOSE = prev_verbose
   end
 end
