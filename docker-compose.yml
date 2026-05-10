@@ -12,10 +12,10 @@ services:
       timeout: 3s
       retries: 10
       start_period: 15s
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 225MB
+    deploy:
+      resources:
+        limits:
+          memory: 200MB
 
   api-1:
     build:
@@ -25,7 +25,6 @@ services:
     environment:
       SEARCH_URL: http://search:9294
       MALLOC_ARENA_MAX: "2"
-      RUBYOPT: "--yjit-exec-mem-size=16"
     volumes:
       - ./api:/app
       - bundle_cache:/usr/local/bundle
@@ -38,10 +37,10 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 55MB
+    deploy:
+      resources:
+        limits:
+          memory: 70MB
 
   api-2:
     build:
@@ -50,6 +49,7 @@ services:
     image: ghcr.io/henrichm/rinha-api:latest
     environment:
       SEARCH_URL: http://search:9294
+      MALLOC_ARENA_MAX: "2"
     volumes:
       - ./api:/app
       - bundle_cache:/usr/local/bundle
@@ -62,10 +62,10 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 55MB
+    deploy:
+      resources:
+        limits:
+          memory: 70MB
 
   nginx:
     image: nginx:alpine
@@ -78,6 +78,10 @@ services:
         condition: service_healthy
       api-2:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 10MB
 
 volumes:
   bundle_cache:

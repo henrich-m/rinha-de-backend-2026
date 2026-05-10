@@ -22,11 +22,11 @@ end
 
 matrix    = Numo::SFloat[*vecs]
 quantizer = Faiss::IndexFlatL2.new(DIM)
-index     = Faiss::IndexIVFFlat.new(quantizer, DIM, NLIST, :l2)
+index     = Faiss::IndexIVFScalarQuantizer.new(quantizer, DIM, NLIST, :qt_fp16)
 index.train(matrix)
 index.add(matrix)
 index.save(INDEX_PATH)
 
 File.binwrite(LABELS_PATH, Numo::Int8[*labels].to_binary)
 
-puts "Trained #{NLIST}-cluster IVF index over #{vecs.size} vectors → #{INDEX_PATH}"
+puts "Trained #{NLIST}-cluster IVFScalarQuantizer(fp16) index over #{vecs.size} vectors → #{INDEX_PATH}"
