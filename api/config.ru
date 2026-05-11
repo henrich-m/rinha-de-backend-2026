@@ -7,7 +7,7 @@ VECTORIZER = Vectorizer.new(
   File.expand_path("resources/mcc_risk.json", __dir__)
 )
 
-SEARCH_URL = ENV.fetch("SEARCH_URL", "http://search:9294")
+SEARCH_SOCKET = ENV.fetch("SEARCH_SOCKET", "/run/search/search.sock")
 
 require_relative "src/server"
 run App

@@ -6,8 +6,11 @@ services:
     image: ghcr.io/henrichm/rinha-search:latest
     environment:
       KNN_NPROBE: "10"
+      SOCKET_PATH: /run/search/search.sock
+    volumes:
+      - search_socket:/run/search
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9294/ready"]
+      test: ["CMD-SHELL", "curl -sf --unix-socket /run/search/search.sock http://localhost/ready"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -16,56 +19,67 @@ services:
       resources:
         limits:
           memory: 200MB
+          cpus: 0.45
 
   api-1:
     build:
       context: ./api
       dockerfile: Dockerfile
     image: ghcr.io/henrichm/rinha-api:latest
+    command: bundle exec falcon host falcon.rb
     environment:
-      SEARCH_URL: http://search:9294
+      SOCKET_PATH: /run/api/api.sock
+      SEARCH_SOCKET: /run/search/search.sock
       MALLOC_ARENA_MAX: "2"
     volumes:
       - ./api:/app
       - bundle_cache:/usr/local/bundle
+      - api1_socket:/run/api
+      - search_socket:/run/search
     depends_on:
       search:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9292/ready"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -sf --unix-socket /run/api/api.sock http://localhost/ready"]
+    #   interval: 5s
+    #   timeout: 3s
+    #   retries: 5
+    #   start_period: 10s
     deploy:
       resources:
         limits:
           memory: 70MB
+          cpus: 0.2
 
   api-2:
     build:
       context: ./api
       dockerfile: Dockerfile
     image: ghcr.io/henrichm/rinha-api:latest
+    command: bundle exec falcon host falcon.rb
     environment:
-      SEARCH_URL: http://search:9294
+      SOCKET_PATH: /run/api/api.sock
+      SEARCH_SOCKET: /run/search/search.sock
       MALLOC_ARENA_MAX: "2"
     volumes:
       - ./api:/app
       - bundle_cache:/usr/local/bundle
+      - api2_socket:/run/api
+      - search_socket:/run/search
     depends_on:
       search:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9292/ready"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -sf --unix-socket /run/api/api.sock http://localhost/ready"]
+    #   interval: 5s
+    #   timeout: 3s
+    #   retries: 5
+    #   start_period: 10s
     deploy:
       resources:
         limits:
           memory: 70MB
+          cpus: 0.2
 
   nginx:
     image: nginx:alpine
@@ -73,15 +87,27 @@ services:
       - "9999:9999"
     volumes:
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      api-1:
-        condition: service_healthy
-      api-2:
-        condition: service_healthy
+      - api1_socket:/run/api1
+      - api2_socket:/run/api2
+    # depends_on:
+    #   api-1:
+    #     condition: service_healthy
+    #   api-2:
+    #     condition: service_healthy
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl http://localhost:9999/ready"]
+    #   interval: 5s
+    #   timeout: 3s
+    #   retries: 5
+    #   start_period: 10s
     deploy:
       resources:
         limits:
           memory: 10MB
+          cpus: 0.15
 
 volumes:
   bundle_cache:
+  api1_socket:
+  api2_socket:
+  search_socket:

@@ -3,13 +3,18 @@
 require "roda"
 require "oj"
 require "async/http/client"
-require "async/http/endpoint"
+require "async/http/protocol"
+require "falcon/proxy_endpoint"
 
 module Search
   def self.client
     @client ||= Async::HTTP::Client.new(
-      Async::HTTP::Endpoint.parse(SEARCH_URL),
-      protocol: Async::HTTP::Protocol::HTTP1
+      Falcon::ProxyEndpoint.unix(
+        SEARCH_SOCKET,
+        protocol: Async::HTTP::Protocol::HTTP1,
+        scheme:   "http",
+        authority: "localhost"
+      )
     )
   end
 

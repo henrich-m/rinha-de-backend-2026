@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
-# ENV RUBY_YJIT_ENABLE=1
+ENV RUBY_YJIT_ENABLE=1
 
 COPY Gemfile Gemfile.lock ./
 RUN bundle install -j4
@@ -33,4 +33,4 @@ RUN bundle install -j4
 COPY --from=trainer /app/index.faiss /app/labels.bin ./
 COPY . .
 
-CMD ["bundle", "exec", "falcon", "serve", "--bind", "http://0.0.0.0:9294", "--count", "1"]
+CMD ["bundle", "exec", "falcon", "host", "falcon.rb"]
