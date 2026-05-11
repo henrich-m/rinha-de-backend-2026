@@ -27,5 +27,9 @@ test:
 	docker compose exec api-1 bundle exec ruby test/m02_vectorization_test.rb
 	docker run --rm --network host \
 		-v $(PWD):/repo \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v /usr/bin/docker:/usr/bin/docker:ro \
+		-v /usr/libexec/docker/cli-plugins:/usr/libexec/docker/cli-plugins:ro \
+		-w /repo \
 		$(RUBY_IMAGE) ruby -e "Dir['/repo/test/m0[^2]*.rb'].sort.each { |f| require f }"
 
