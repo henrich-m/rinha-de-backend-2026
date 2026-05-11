@@ -3,8 +3,9 @@
 RUBY_IMAGE := ruby:4
 BUNDLE_VOLUME := bundle_cache
 
-## Build all images
+## Train KNN model and build all images
 build:
+	docker compose --profile build run --rm trainer
 	docker compose build
 
 ## Start the full stack in the background

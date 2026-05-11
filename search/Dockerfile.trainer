@@ -1,0 +1,12 @@
+FROM ruby:4
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake g++ libblas-dev liblapack-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY Gemfile Gemfile.lock ./
+RUN bundle install -j4
+
+CMD ["bundle", "exec", "ruby", "src/knn_trainer.rb"]

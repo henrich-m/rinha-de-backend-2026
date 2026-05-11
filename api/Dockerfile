@@ -1,21 +1,3 @@
-# ── Stage 1: train ──────────────────────────────────────────────
-FROM ruby:4 AS trainer
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake g++ libblas-dev liblapack-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-COPY api/Gemfile api/Gemfile.lock ./
-RUN bundle install -j4
-
-COPY search/src/knn_trainer.rb ./src/
-COPY search/resources/references.json.gz ./resources/
-
-RUN bundle exec ruby src/knn_trainer.rb
-
-# ── Stage 2: runtime ────────────────────────────────────────────
 FROM ruby:4
 
 WORKDIR /app
@@ -30,7 +12,7 @@ ENV RUBY_YJIT_ENABLE=1
 COPY api/Gemfile api/Gemfile.lock ./
 RUN bundle install -j4
 
-COPY --from=trainer /app/index.faiss /app/labels.bin ./
+COPY search/index.faiss search/labels.bin ./
 COPY api/ .
 
 CMD ["bundle", "exec", "falcon", "host", "falcon.rb"]

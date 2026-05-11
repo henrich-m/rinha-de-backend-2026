@@ -49,6 +49,14 @@ services:
           memory: 20MB
           cpus: 0.2
 
+  trainer:
+    profiles: [build]
+    build:
+      context: ./search
+      dockerfile: Dockerfile.trainer
+    volumes:
+      - ./search:/app
+
 volumes:
   api1_socket:
   api2_socket:
