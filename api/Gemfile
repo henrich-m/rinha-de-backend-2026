@@ -6,6 +6,8 @@ gem "falcon"
 gem "io-endpoint"
 gem "roda"
 gem "oj"
+gem "faiss"
+gem "numo-narray"
 
 group :test do
   gem "minitest"

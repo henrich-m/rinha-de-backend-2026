@@ -22,11 +22,11 @@ end
 
 matrix    = Numo::SFloat[*vecs]
 quantizer = Faiss::IndexFlatL2.new(DIM)
-index     = Faiss::IndexIVFScalarQuantizer.new(quantizer, DIM, NLIST, :qt_fp16)
+index     = Faiss::IndexIVFScalarQuantizer.new(quantizer, DIM, NLIST, :qt_8bit)
 index.train(matrix)
 index.add(matrix)
 index.save(INDEX_PATH)
 
 File.binwrite(LABELS_PATH, Numo::Int8[*labels].to_binary)
 
-puts "Trained #{NLIST}-cluster IVFScalarQuantizer(fp16) index with nprobe=#{ENV.fetch("KNN_NPROBE", "10")} over #{vecs.size} vectors → #{INDEX_PATH}"
+puts "Trained #{NLIST}-cluster IVFScalarQuantizer(8bit) index with nprobe=#{ENV.fetch("KNN_NPROBE", "10")} over #{vecs.size} vectors → #{INDEX_PATH}"
