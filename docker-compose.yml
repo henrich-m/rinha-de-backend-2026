@@ -1,6 +1,6 @@
 services:
   api-1:
-    image: ghcr.io/henrichm/rinha-api:main
+    image: ghcr.io/henrich-m/rinha-de-backend-2026:v1
     command: bundle exec falcon host falcon.rb
     environment:
       SOCKET_PATH: /run/api/api.sock
@@ -15,7 +15,7 @@ services:
           cpus: 0.4
 
   api-2:
-    image: ghcr.io/henrichm/rinha-api:main
+    image: ghcr.io/henrich-m/rinha-de-backend-2026:v1
     command: bundle exec falcon host falcon.rb
     environment:
       SOCKET_PATH: /run/api/api.sock
