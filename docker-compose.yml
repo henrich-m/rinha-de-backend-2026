@@ -2,7 +2,7 @@ services:
   api-1:
     build:
       context: .
-      dockerfile: api/Dockerfile
+      dockerfile: Dockerfile
     image: ghcr.io/henrichm/rinha-api:latest
     command: bundle exec falcon host falcon.rb
     environment:
@@ -20,7 +20,7 @@ services:
   api-2:
     build:
       context: .
-      dockerfile: api/Dockerfile
+      dockerfile: Dockerfile
     image: ghcr.io/henrichm/rinha-api:latest
     command: bundle exec falcon host falcon.rb
     environment:
