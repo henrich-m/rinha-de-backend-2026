@@ -7,7 +7,7 @@ services:
     command: bundle exec falcon host falcon.rb
     environment:
       SOCKET_PATH: /run/api/api.sock
-      KNN_NPROBE: "64"
+      KNN_NPROBE: "32"
       MALLOC_ARENA_MAX: "2"
     volumes:
       - api1_socket:/run/api
@@ -25,7 +25,7 @@ services:
     command: bundle exec falcon host falcon.rb
     environment:
       SOCKET_PATH: /run/api/api.sock
-      KNN_NPROBE: "64"
+      KNN_NPROBE: "32"
       MALLOC_ARENA_MAX: "2"
     volumes:
       - api2_socket:/run/api
