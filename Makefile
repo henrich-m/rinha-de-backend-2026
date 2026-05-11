@@ -23,16 +23,9 @@ logs-api:
 ## Run unit tests (inside container) and integration tests (against localhost:9999)
 test:
 	docker compose exec api-1 bundle exec ruby -Itest test/server_unit_test.rb
+	docker compose cp test/m02_vectorization_test.rb api-1:/app/test/m02_vectorization_test.rb
+	docker compose exec api-1 bundle exec ruby test/m02_vectorization_test.rb
 	docker run --rm --network host \
-		-v $(PWD)/test:/test \
-		$(RUBY_IMAGE) ruby -e "Dir['/test/m*.rb'].sort.each { |f| require f }"
+		-v $(PWD):/repo \
+		$(RUBY_IMAGE) ruby -e "Dir['/repo/test/m0[^2]*.rb'].sort.each { |f| require f }"
 
-## Install gems into the shared bundle_cache volume (needs build tools for faiss).
-update-bundle-cache:
-	docker run --rm -w /app \
-		-v $(PWD)/api:/app \
-		-v $(BUNDLE_VOLUME):/usr/local/bundle \
-		$(RUBY_IMAGE) bash -c "\
-			apt-get update -qq && \
-			apt-get install -y --no-install-recommends cmake g++ libblas-dev liblapack-dev && \
-			bundle install"
