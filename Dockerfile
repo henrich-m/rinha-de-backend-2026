@@ -12,7 +12,7 @@ ENV RUBY_YJIT_ENABLE=1
 COPY api/Gemfile api/Gemfile.lock ./
 RUN bundle install -j4
 
-COPY search/index.faiss search/labels.bin ./
+COPY api/index.faiss api/labels.bin ./
 COPY api/ .
 
 CMD ["bundle", "exec", "falcon", "host", "falcon.rb"]

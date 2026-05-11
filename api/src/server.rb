@@ -13,6 +13,9 @@ class App < Roda
         response.status = 503
         "Loading"
       end
+    rescue
+      response.status = 503
+      "Unavailable"
     end
 
     r.post "fraud-score" do

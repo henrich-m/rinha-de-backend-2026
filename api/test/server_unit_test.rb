@@ -5,18 +5,23 @@ require "rack/test"
 require "json"
 require_relative "../src/vectorizer"
 
-# Stub VECTORIZER before requiring server so the constant exists at request time.
 StubVectorizer = Struct.new(:vector) { def vectorize(_payload) = vector || [0.0] * 14 }
 VECTORIZER = StubVectorizer.new
 
-SEARCH_URL = "http://search:9294"
+StubKnn = Struct.new(:labels, :ready_raises, :search_raises) do
+  def ready?
+    raise "knn unavailable" if ready_raises
+    true
+  end
+
+  def search(_v, k:)
+    raise RuntimeError, "connection error" if search_raises
+    labels
+  end
+end
+KNN = StubKnn.new([0, 0, 0, 0, 0], false, false)
 
 require_relative "../src/server"
-
-# Mock response object returned by Search stubs
-MockResponse = Struct.new(:status, :body) do
-  def read = body
-end
 
 class ServerUnitTest < Minitest::Test
   include Rack::Test::Methods
@@ -33,15 +38,15 @@ class ServerUnitTest < Minitest::Test
   }.freeze
 
   def setup
-    # Default stubs: search is ready, all-legit neighbors
-    Search.define_singleton_method(:ready?) { MockResponse.new(200, "Ready") }
-    Search.define_singleton_method(:knn) { |_v| [0, 0, 0, 0, 0] }
+    KNN.labels       = [0, 0, 0, 0, 0]
+    KNN.ready_raises = false
+    KNN.search_raises = false
   end
 
   def teardown
-    # Reset to default stubs after each test
-    Search.define_singleton_method(:ready?) { MockResponse.new(200, "Ready") }
-    Search.define_singleton_method(:knn) { |_v| [0, 0, 0, 0, 0] }
+    KNN.labels       = [0, 0, 0, 0, 0]
+    KNN.ready_raises = false
+    KNN.search_raises = false
   end
 
   def test_ready_returns_200_when_db_is_up
@@ -50,7 +55,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_ready_returns_503_when_db_is_down
-    Search.define_singleton_method(:ready?) { raise "search unavailable" }
+    KNN.ready_raises = true
     get "/ready"
     assert_equal 503, last_response.status
   end
@@ -76,7 +81,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_all_fraud_neighbors_returns_score_1_and_denied
-    Search.define_singleton_method(:knn) { |_v| [1, 1, 1, 1, 1] }
+    KNN.labels = [1, 1, 1, 1, 1]
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 1.0,   body["fraud_score"]
@@ -84,7 +89,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_all_legit_neighbors_returns_score_0_and_approved
-    Search.define_singleton_method(:knn) { |_v| [0, 0, 0, 0, 0] }
+    KNN.labels = [0, 0, 0, 0, 0]
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.0,  body["fraud_score"]
@@ -92,7 +97,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_two_fraud_neighbors_approved
-    Search.define_singleton_method(:knn) { |_v| [1, 1, 0, 0, 0] }
+    KNN.labels = [1, 1, 0, 0, 0]
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.4,  body["fraud_score"]
@@ -100,7 +105,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_three_fraud_neighbors_denied
-    Search.define_singleton_method(:knn) { |_v| [1, 1, 1, 0, 0] }
+    KNN.labels = [1, 1, 1, 0, 0]
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 0.6,   body["fraud_score"]
@@ -108,7 +113,7 @@ class ServerUnitTest < Minitest::Test
   end
 
   def test_db_exception_returns_approved_with_zero_score
-    Search.define_singleton_method(:knn) { |_v| raise RuntimeError, "connection error" }
+    KNN.search_raises = true
     post "/fraud-score", STUB_PAYLOAD.to_json, "CONTENT_TYPE" => "application/json"
     body = JSON.parse(last_response.body)
     assert_equal 200,  last_response.status

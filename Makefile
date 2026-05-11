@@ -1,4 +1,4 @@
-.PHONY: build up down logs-api logs-search test update-bundle-cache
+.PHONY: build up down logs-api test update-bundle-cache
 
 RUBY_IMAGE := ruby:4
 BUNDLE_VOLUME := bundle_cache
@@ -20,23 +20,17 @@ down:
 logs-api:
 	docker compose logs -f api-1 api-2
 
-## Tail search logs (Ctrl-C to stop)
-logs-search:
-	docker compose logs -f search
-
-## Run API unit tests (stack must be running)
+## Run unit tests (inside container) and integration tests (against localhost:9999)
 test:
 	docker compose exec api-1 bundle exec ruby -Itest test/server_unit_test.rb
+	docker run --rm --network host \
+		-v $(PWD)/test:/test \
+		$(RUBY_IMAGE) ruby -e "Dir['/test/m*.rb'].sort.each { |f| require f }"
 
-## Install gems for api/ and search/ into the shared bundle_cache volume.
-## Runs api first (no native deps), then search (needs build tools for faiss).
+## Install gems into the shared bundle_cache volume (needs build tools for faiss).
 update-bundle-cache:
 	docker run --rm -w /app \
 		-v $(PWD)/api:/app \
-		-v $(BUNDLE_VOLUME):/usr/local/bundle \
-		$(RUBY_IMAGE) bundle install
-	docker run --rm -w /app \
-		-v $(PWD)/search:/app \
 		-v $(BUNDLE_VOLUME):/usr/local/bundle \
 		$(RUBY_IMAGE) bash -c "\
 			apt-get update -qq && \

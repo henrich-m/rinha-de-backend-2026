@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/henrichm/rinha-api:latest
+    image: ghcr.io/henrichm/rinha-api:main
     command: bundle exec falcon host falcon.rb
     environment:
       SOCKET_PATH: /run/api/api.sock
@@ -21,7 +21,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/henrichm/rinha-api:latest
+    image: ghcr.io/henrichm/rinha-api:main
     command: bundle exec falcon host falcon.rb
     environment:
       SOCKET_PATH: /run/api/api.sock
@@ -52,10 +52,10 @@ services:
   trainer:
     profiles: [build]
     build:
-      context: ./search
+      context: ./api
       dockerfile: Dockerfile.trainer
     volumes:
-      - ./search:/app
+      - ./api:/app
 
 volumes:
   api1_socket:
