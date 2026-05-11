@@ -1,0 +1,48 @@
+services:
+  api-1:
+    image: ghcr.io/henrichm/rinha-api:main
+    command: bundle exec falcon host falcon.rb
+    environment:
+      SOCKET_PATH: /run/api/api.sock
+      KNN_NPROBE: "16"
+      MALLOC_ARENA_MAX: "2"
+    volumes:
+      - api1_socket:/run/api
+    deploy:
+      resources:
+        limits:
+          memory: 165MB
+          cpus: 0.4
+
+  api-2:
+    image: ghcr.io/henrichm/rinha-api:main
+    command: bundle exec falcon host falcon.rb
+    environment:
+      SOCKET_PATH: /run/api/api.sock
+      KNN_NPROBE: "16"
+      MALLOC_ARENA_MAX: "2"
+    volumes:
+      - api2_socket:/run/api
+    deploy:
+      resources:
+        limits:
+          memory: 165MB
+          cpus: 0.4
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - api1_socket:/run/api1
+      - api2_socket:/run/api2
+    deploy:
+      resources:
+        limits:
+          memory: 20MB
+          cpus: 0.2
+
+volumes:
+  api1_socket:
+  api2_socket:
