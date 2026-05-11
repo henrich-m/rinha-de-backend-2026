@@ -13,7 +13,5 @@ KNN = Knn.new(
   File.expand_path("labels.bin",  __dir__)
 )
 
-GC.compact
-
 require_relative "src/server"
 run App
