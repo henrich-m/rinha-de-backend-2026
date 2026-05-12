@@ -11,6 +11,7 @@ class Knn
     @index        = Faiss::Index.load(index_path)
     @index.nprobe = NPROBE
     @labels       = Numo::Int8.from_binary(File.binread(labels_path), [@index.ntotal])
+    @index.freeze
     @ready        = true
   end
 

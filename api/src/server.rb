@@ -1,33 +1,29 @@
 # frozen_string_literal: true
 
-require "roda"
 require "oj"
 
-class App < Roda
-  route do |r|
-    r.get "ready" do
-      if KNN.ready?
-        response.status = 200
-        "Ready"
-      else
-        response.status = 503
-        "Loading"
-      end
+App = lambda do |env|
+  case [env["REQUEST_METHOD"], env["PATH_INFO"]]
+  when ["GET", "/ready"]
+    begin
+      KNN.ready? ? [200, {}, ["Ready"]] : [503, {}, ["Loading"]]
     rescue
-      response.status = 503
-      "Unavailable"
+      [503, {}, ["Unavailable"]]
     end
-
-    r.post "fraud-score" do
-      response["Content-Type"] = "application/json"
-      payload     = Oj.load(r.body.read, symbol_keys: false)
+  when ["POST", "/fraud-score"]
+    begin
+      payload     = Oj.load(env["rack.input"].read, symbol_keys: false)
       vector      = VECTORIZER.vectorize(payload)
       labels      = KNN.search(vector, k: 5)
       fraud_count = labels.count { |v| v == 1 }
       fraud_score = fraud_count.to_f / 5
-      Oj.dump({ "approved" => fraud_score < 0.6, "fraud_score" => fraud_score })
+      body        = Oj.dump({ "approved" => fraud_score < 0.6, "fraud_score" => fraud_score })
+      [200, { "Content-Type" => "application/json" }, [body]]
     rescue
-      Oj.dump({ "approved" => true, "fraud_score" => 0.0 })
+      [200, { "Content-Type" => "application/json" },
+            [Oj.dump({ "approved" => true, "fraud_score" => 0.0 })]]
     end
+  else
+    [404, {}, ["Not Found"]]
   end
 end

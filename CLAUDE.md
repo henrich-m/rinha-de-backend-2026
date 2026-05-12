@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All development runs inside Docker — no local Ruby toolchain required.
 
-**Stack:** Ruby 4, Falcon (async fiber server), Roda (router), Oj (JSON), async-postgres, PostgreSQL 16 + pgvector, PgBouncer, nginx.
+**Stack:** Ruby 4, Falcon (async fiber server), Oj (JSON), Faiss (HNSW index), Numo::NArray, nginx.
 
-**Entry point:** `config.ru` at repo root — Falcon loads it automatically via `falcon serve`. It requires `src/server.rb` and calls `run App` where `App` is a Roda subclass.
+**Entry point:** `config.ru` at repo root — Falcon loads it automatically via `falcon serve`. It requires `src/server.rb` and calls `run App` where `App` is a plain Rack lambda.
 
 **Dev commands:**
 

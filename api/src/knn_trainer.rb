@@ -22,7 +22,7 @@ end
 
 matrix    = Numo::SFloat[*vecs]
 quantizer = Faiss::IndexFlatL2.new(DIM)
-index     = Faiss::IndexIVFScalarQuantizer.new(quantizer, DIM, NLIST, :qt_8bit)
+index     = Faiss::IndexIVFScalarQuantizer.new(quantizer, DIM, NLIST, :qt_fp16)
 index.train(matrix)
 index.add(matrix)
 index.save(INDEX_PATH)

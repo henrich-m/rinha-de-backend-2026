@@ -14,7 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 165MB
+          memory: 167.5MB
           cpus: 0.4
 
   api-2:
@@ -32,7 +32,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 165MB
+          memory: 167.5MB
           cpus: 0.4
 
   nginx:
@@ -46,7 +46,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20MB
+          memory: 15MB
           cpus: 0.2
 
   trainer:
