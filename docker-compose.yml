@@ -1,6 +1,6 @@
 services:
   api-1:
-    image: ghcr.io/henrich-m/rinha-de-backend-2026:v2
+    image: ghcr.io/henrich-m/rinha-de-backend-2026:v4
     command: bundle exec iodine -b /run/api/api.sock -t 1 -w 0
     environment:
       KNN_NPROBE: "10"
@@ -15,7 +15,7 @@ services:
           cpus: 0.4
 
   api-2:
-    image: ghcr.io/henrich-m/rinha-de-backend-2026:v2
+    image: ghcr.io/henrich-m/rinha-de-backend-2026:v4
     command: bundle exec iodine -b /run/api/api.sock -t 1 -w 0
     environment:
       KNN_NPROBE: "10"
