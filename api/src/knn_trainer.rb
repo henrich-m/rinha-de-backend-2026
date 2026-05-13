@@ -7,7 +7,7 @@ require "oj"
 REFS_PATH   = "resources/references.json.gz"
 INDEX_PATH  = "index.faiss"
 LABELS_PATH = "labels.bin"
-NLIST       = 2048
+NLIST       = 4096
 DIM         = 14
 
 vecs   = []

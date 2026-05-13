@@ -6,7 +6,7 @@ services:
     image: ghcr.io/henrich-m/rinha-de-backend-2026:v2
     command: bundle exec iodine -b /run/api/api.sock -t 1 -w 0
     environment:
-      KNN_NPROBE: "8"
+      KNN_NPROBE: "10"
       NO_SSL: 1
       MALLOC_ARENA_MAX: "2"
     volumes:
@@ -24,7 +24,7 @@ services:
     image: ghcr.io/henrich-m/rinha-de-backend-2026:v2
     command: bundle exec iodine -b /run/api/api.sock -t 1 -w 0
     environment:
-      KNN_NPROBE: "8"
+      KNN_NPROBE: "10"
       MALLOC_ARENA_MAX: "2"
       NO_SSL: 1
     volumes:
