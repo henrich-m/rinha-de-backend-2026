@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All development runs inside Docker — no local Ruby toolchain required.
 
-**Stack:** Ruby 4, Falcon (async fiber server), Oj (JSON), Faiss (HNSW index), Numo::NArray, nginx.
+**Stack:** Ruby 4, Puma (single-threaded Rack server), Oj (JSON), Faiss (HNSW index), Numo::NArray, nginx.
 
-**Entry point:** `config.ru` at repo root — Falcon loads it automatically via `falcon serve`. It requires `src/server.rb` and calls `run App` where `App` is a plain Rack lambda.
+**Entry point:** `config.ru` at repo root — Puma loads it automatically. It requires `src/server.rb` and calls `run App` where `App` is a plain Rack lambda. Puma config is in `config/puma.rb` (1 thread, Unix socket bind).
 
 **Dev commands:**
 
@@ -30,7 +30,6 @@ docker compose -f docker-compose.dev.yml down
 
 **Dockerfile.dev** — source is volume-mounted at `/app`; gems persist in `bundle_cache` volume at `/usr/local/bundle`. Rebuild only when `Gemfile` changes.
 
-**Known quirk:** `protocol-rack` calls `peer.ip_address` but `Async::IO::Socket` (from `async-io`) only exposes `remote_address`. The patch in `config.ru` adds this method via `prepend`. Do not remove it.
 
 ## Vectorizer
 

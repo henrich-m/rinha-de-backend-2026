@@ -3,36 +3,36 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/henrich-m/rinha-de-backend-2026:v1
-    command: bundle exec falcon host falcon.rb
+    image: ghcr.io/henrich-m/rinha-de-backend-2026:v2
+    command: bundle exec iodine -b /run/api/api.sock -t 1 -w 0
     environment:
-      SOCKET_PATH: /run/api/api.sock
-      KNN_NPROBE: "16"
+      KNN_NPROBE: "8"
+      NO_SSL: 1
       MALLOC_ARENA_MAX: "2"
     volumes:
       - api1_socket:/run/api
     deploy:
       resources:
         limits:
-          memory: 167.5MB
+          memory: 170MB
           cpus: 0.4
 
   api-2:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/henrich-m/rinha-de-backend-2026:v1
-    command: bundle exec falcon host falcon.rb
+    image: ghcr.io/henrich-m/rinha-de-backend-2026:v2
+    command: bundle exec iodine -b /run/api/api.sock -t 1 -w 0
     environment:
-      SOCKET_PATH: /run/api/api.sock
-      KNN_NPROBE: "16"
+      KNN_NPROBE: "8"
       MALLOC_ARENA_MAX: "2"
+      NO_SSL: 1
     volumes:
       - api2_socket:/run/api
     deploy:
       resources:
         limits:
-          memory: 167.5MB
+          memory: 170MB
           cpus: 0.4
 
   nginx:
@@ -46,7 +46,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 15MB
+          memory: 10MB
           cpus: 0.2
 
   trainer:

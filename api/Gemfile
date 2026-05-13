@@ -2,8 +2,7 @@
 
 source "https://rubygems.org"
 
-gem "falcon"
-gem "io-endpoint"
+gem "iodine"
 gem "oj"
 gem "faiss"
 gem "numo-narray"

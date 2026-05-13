@@ -7,7 +7,7 @@ require "oj"
 REFS_PATH   = "resources/references.json.gz"
 INDEX_PATH  = "index.faiss"
 LABELS_PATH = "labels.bin"
-NLIST       = 8192
+NLIST       = 2048
 DIM         = 14
 
 vecs   = []
@@ -29,4 +29,4 @@ index.save(INDEX_PATH)
 
 File.binwrite(LABELS_PATH, Numo::Int8[*labels].to_binary)
 
-puts "Trained #{NLIST}-cluster IVFScalarQuantizer(8bit) index with nprobe=#{ENV.fetch("KNN_NPROBE", "10")} over #{vecs.size} vectors → #{INDEX_PATH}"
+puts "Trained #{NLIST}-cluster IVFScalarQuantizer(16bit) index with nprobe=#{ENV.fetch("KNN_NPROBE", "10")} over #{vecs.size} vectors → #{INDEX_PATH}"
